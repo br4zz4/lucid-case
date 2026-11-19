@@ -3,12 +3,18 @@ require "active_support/core_ext"
 require "active_support/notifications"
 require "active_model"
 require "active_record"
+require "securerandom"
 
 require "lucid/case/version"
 require "lucid/case/errors"
 require "lucid/case/result"
 require "lucid/case/attributes"
+require "lucid/case/events/configuration"
 require "lucid/case/configuration"
+require "lucid/case/event"
+require "lucid/case/events/subscription"
+require "lucid/case/events/registry"
+require "lucid/case/events/subscribing"
 require "lucid/case/validations"
 require "lucid/case/kind_validator"
 require "lucid/case/kinds"
@@ -50,6 +56,7 @@ module Lucid
     include Catching
     include Finally
     include Cache
+    include Events::Subscribing
 
     class << self
       # Builds the case with +input+ and runs it.
@@ -102,6 +109,7 @@ module Lucid
       # @raise [Lucid::Case::Error::MissingCacheScope] +cache_scope+ is not set
       def validate_configuration!
         config = configuration
+        config.events.validate!
         return config unless config.perform_caching && (@cache_in_use || config.cache == :enabled)
 
         store = config.cache_store
@@ -175,4 +183,5 @@ end
 
 require "lucid/case/command"
 require "lucid/case/query"
+require "lucid/case/subscriber"
 require "lucid/case/railtie" if defined?(Rails::Railtie)
