@@ -1,68 +1,38 @@
-# Logging
+# Errors
 
-Logging is off by default. Turn it on for the whole app in `config/initializers/lucid_case.rb`:
+Errors raised by the gem inherit from `Lucid::Case::Error < StandardError`. Expected outcomes are `failure(...)` results, not errors.
 
-```ruby
-Lucid::Case.configure do |config|
-  config.logging = :enabled
-end
-```
-
-Or for a single case. The case setting wins over the global one, and subclasses inherit it. `values: true` also logs the values:
-
-```ruby
-class Provisioning::Run < Lucid::Case
-  kind :command
-  logging :enabled, values: true
-end
-
-class Reports::Totals < Lucid::Case
-  kind :query
-  logging :disabled
-end
-```
-
-## What you get
-
-Each call logs its input, every step, any exception a step raised or a `catch` handled, and the result with how long it took:
-
-```
-[Lucid::Case] Provisioning::Run called input=[:provisioning, :token]
-[Lucid::Case] Provisioning::Run step :start -> continue
-[Lucid::Case] Provisioning::Run step :configure_dns raised Timeout::Error: dns down
-[Lucid::Case] Provisioning::Run caught Timeout::Error: dns down -> failure(:timeout) content=[:error]
-[Lucid::Case] Provisioning::Run failure(:timeout) content=[:error] in 0.5ms
-```
-
-Inside a case you can write your own lines with `logger`, which has `debug`, `info`, `warn` and `error`, takes a message or a block, and follows the case's `logging` setting:
-
-```ruby
-step(:charge) do
-  logger.info("charging order ##{order.id}")
-  continue
-end
-```
-
-Exception messages can carry values (a unique violation names the duplicated value), so without values enabled only the exception class is logged: `raised Timeout::Error`.
-
-A cached query adds `cache=hit`, `cache=miss` or `cache=bypass` (a `fresh` call) to the last line. An exception that no `catch` handles is logged as `raised ...` at `error` level and then propagates.
-
-Lines about steps raising and exceptions being caught go out as `warn`. Everything else uses `config.log_level`, which is `:info` unless you change it. It sets the severity of the lines, it does not filter them: to log less, raise the level of your logger.
-
-## Values stay out of the log
-
-By default only names are logged: the input keys and the content keys, never what is inside them. That matters in apps that handle personal data.
-
-`logging :enabled, values: true` in a case logs the values of that case as well, and `config.log_values = true` does it for every case. The values are passed through `ActiveSupport::ParameterFilter` with your app's `filter_parameters`, so a `token` or `password` shows as `[FILTERED]`. To use other filters, set `config.filter_parameters = [:token, /secret/]`. Check what your cases return before turning `log_values` on.
-
-## Options
-
-| Option | Default | |
+| Error | When | Fix |
 |---|---|---|
-| `logging` | `:disabled` | `:enabled` or `:disabled`. A case overrides it with `logging`. |
-| `logger` | `Rails.logger` | Anything with `debug`, `info`, `warn` and `error`. Without a logger, nothing is logged. |
-| `log_level` | `:info` | `:debug`, `:info`, `:warn` or `:error`. |
-| `log_values` | `false` | Log filtered values, not only keys. |
-| `filter_parameters` | the app's | Filters applied to logged values. |
+| `UnexpectedResult` | `call!` returned something other than `success` or `failure`; a step returned something other than `continue`, `skip_to`, `success` or `failure`; the steps ended without a final result. | Return `success(...)` or `failure(...)`. End a pipeline with a step that does. |
+| `AmbiguousDefinition` | A class declares `step` and defines `call!`, in either order. Raised when the class loads. | Pick one. |
+| `InvalidKind` | `kind` with something other than `:command`, `:query` or `:subscriber`, or redeclaring a different kind. | Declare the kind once. Do not change it in a subclass of `Command` or `Query`. |
+| `SideEffectInQuery` | A query declares `transaction`, `after_success`, `after_failure` or `after_commit`, or `kind :query` comes after them. Raised when the class loads. | Make it a command, or move the side effect to the caller. |
+| `CacheOnCommand` | `cache` on a command. | Declare `kind :query` (or inherit from `Query`) before `cache`, or drop `cache`. |
+| `UncacheableInput` | A cached query got an input that cannot be keyed, such as an arbitrary object or a lambda. | Pass primitives, hashes and arrays of them, or records. |
+| `CacheStoreMissing` | At boot, caching is in use, `perform_caching` is true and the store is `nil` or a `NullStore`. | Set `config.cache_store` to a real store, or set `perform_caching` to false. |
+| `MissingCacheScope` | At boot, caching is in use and `cache_scope` is unset. Also at call time when the scope callable returns `nil`. | Set `config.cache_scope` to a callable or `:global`, and never return `nil` from it. |
+| `SubscribeOutsideSubscriber` | `subscribe` in a command or a query. Raised when the class loads. | Make the class a `Lucid::Case::Subscriber`. |
+| `InvalidSubscription` | A subscription with a target that is not a command, an unknown step, an invalid `on:`, `on:` or `step:` on a custom event, a block without `as:` when deduplication or `ordered:` is on, or `stale_on` outside a query. | Fix the declaration. |
+| `EmitOutsideCommand` | `emit` in a query or a subscriber. | Emit from a command. |
+| `UnserializableEvent` | The content or input of an event cannot be serialized (a lambda, a record that was not saved). | Pass primitives and saved records, or shape it with `event_payload`. |
+| `RelayFailed` | `Lucid::Case::Events.relay_pending` finished a batch in which a transport failed. The message lists the event ids. | Fix the transport; the rows stay pending and the next sweep retries. |
 
-Invalid values raise `ArgumentError`. Logging is separate from the `call.lucid_case` notification, which is always published.
+A few errors come from elsewhere:
+
+- `ActiveRecord::ReadOnlyError`: a query tried to write. Make it a command.
+- `ArgumentError`: invalid `transaction`, `cache`, `accumulate` or `logging` value, `catch` without classes or a block, a hook without a method or block, a `step` without a block, or `skip_to` a step that is not ahead.
+- `NotImplementedError`: a case with neither `call!` nor steps.
+- `NoMethodError`: `fresh` or `stale` on a command.
+
+## Event lines
+
+Events add a few lines, all through the same switch (see [Events](events.md)):
+
+```
+[Lucid::Case] Payment::Charge event "payment.charge" recorded id=6f1c...
+[Lucid::Case] Provisioning::Run events kept after raise (no transaction): "provisioning.run" step :start id=2b9e...
+[Lucid::Case] event "payment.charge" id=6f1c... relay failed: IOError
+```
+
+The switch that counts is the one of the case that recorded the event (recording and the relay right after the commit), of the subscriber (a delivery; a block follows `config.logging`) and `config.logging` for `relay_pending`. A transport that failed, a delivery that gave up and an event already purged log at `error`. With logging off nothing is written; `relay_pending` raises `RelayFailed` and a delivery job lets its last exception rise.

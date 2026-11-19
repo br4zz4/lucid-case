@@ -12,4 +12,5 @@ A `circuit_breaker` macro for cases that call unstable external services. After 
 - Invalidating by tag instead of by exact inputs.
 - Retry policies for `catch` handlers.
 - Async execution (`Case.call_later`) on top of ActiveJob.
+- Instrumentation (`ActiveSupport::Notifications`) and a panel for pending or failed event deliveries.
 - A test helper gem with `assert_success`, `assert_failure(:type)` and `stub_case`.

@@ -72,3 +72,26 @@ A result that was just computed has `cached_at: nil`. A hit carries the time the
 ## Instrumentation
 
 `call.lucid_case` events carry `cache:` with `:hit`, `:miss`, `:bypass` (from `fresh`) or `nil` when the query is not cached. The log line gets a `cache=` suffix too; see [Logging](logging.md).
+
+## Invalidating on events
+
+`stale_on` drops cache entries when a command's event happens, so you do not call `stale` by hand:
+
+```ruby
+class Dashboard::Evolution < Lucid::Case::Query
+  cache duration: 5.minutes
+  attributes :period
+
+  stale_on Enrollment::Approve
+  stale_on Enrollment::Reject, on: :any
+  stale_on Enrollment::Approve, period: ->(event) { event.content[:enrollment].period }
+  stale_on :credit_limit_reached
+  stale_on Order::Place, step: :reserve_stock
+end
+```
+
+Without a mapping it calls `stale`, dropping every entry of the query in the current scope. With a mapping each value is a callable that receives the event and returns the input to drop, so `period:` above calls `stale(period: ...)`. The mapping has to cover the attributes the entry was cached with, exactly like `stale(period: ...)`. `on:` and `step:` work as in `subscribe`.
+
+The invalidation runs in the process that produced the event, right after the commit, and never goes through the outbox or a job: a delayed job would leave a window where the screen shows data already changed. It does not need `config.events.recording`. A rolled back command invalidates nothing. If the process dies at that instant the worst case is the entry expiring by its TTL.
+
+`stale_on` outside a query raises `InvalidSubscription`.
