@@ -22,8 +22,11 @@ module Lucid
           end
 
           # @return [Array<Lucid::Case::Events::Subscription>] subscriptions that want the described Event
-          def matching(kind:, name:, step:, type:, success:)
-            subscriptions.select { |subscription| subscription.match?(kind: kind, name: name, step: step, type: type, success: success) }
+          def matching(kind:, name:, step:, type:, success:, in_process: false)
+            subscriptions.select do |subscription|
+              (subscription.in_process ? true : false) == in_process &&
+                subscription.match?(kind: kind, name: name, step: step, type: type, success: success)
+            end
           end
         end
       end

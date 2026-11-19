@@ -96,12 +96,17 @@ module Lucid
       # @raise [Lucid::Case::Error::EmitOutsideCommand] when the case is not a Command
       def emit(name, **content)
         raise Error::EmitOutsideCommand, "#{self.class.name} is a #{self.class.kind}: only Commands can emit events" unless self.class.command?
+        lucid_trigger_stale(kind: :custom, name: name.to_s, step: nil, type: nil, success: true, input: {}, content: content)
         return unless self.class.events_recording?
 
         lucid_record_event(kind: :custom, name: name.to_s, type: nil, success: true, input: {}, content: content)
       end
 
       def lucid_record_case_event(result)
+        return unless self.class.command?
+
+        lucid_trigger_stale(kind: :case, name: Events.event_name(self.class), step: nil, type: result.type, success: result.success?,
+                            input: attribute_values, content: result.content)
         return unless self.class.events_recording?
 
         block = self.class.event_payload_block
@@ -111,14 +116,26 @@ module Lucid
       end
 
       def lucid_record_step_event(name, outcome)
-        return unless self.class.events_recording?
+        return unless self.class.command?
+        return unless outcome.is_a?(Result) || outcome.is_a?(Stepped::Directive)
         return if outcome.is_a?(Result) && outcome.failure?
 
         event_name = Events.event_name(self.class)
+        lucid_trigger_stale(kind: :step, name: event_name, step: name, type: :ok, success: true, input: attribute_values, content: outcome.content)
+        return unless self.class.events_recording?
         return if Registry.matching(kind: :step, name: event_name, step: name, type: :ok, success: true).empty?
 
         type = outcome.is_a?(Result) ? outcome.type : :ok
         lucid_record_event(kind: :step, name: event_name, step: name, type: type, success: true, input: {}, content: outcome.content)
+      end
+
+      def lucid_trigger_stale(kind:, name:, step:, type:, success:, input:, content:)
+        subscriptions = Registry.matching(kind: kind, name: name, step: step, type: type, success: success, in_process: true)
+        return if subscriptions.empty?
+
+        event = Event.new(id: SecureRandom.uuid, kind: kind, name: name, source: self.class.name, step: step, type: type, success: success,
+                          input: input, content: content, occurred_at: Time.current)
+        ActiveRecord.after_all_transactions_commit { subscriptions.each { |subscription| subscription.handler.call(event) } }
       end
 
       def lucid_record_event(kind:, name:, type:, success:, input:, content:, step: nil)

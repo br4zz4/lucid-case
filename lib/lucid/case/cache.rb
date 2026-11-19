@@ -1,6 +1,7 @@
 require "lucid/case/cache/key"
 require "lucid/case/cache/store"
 require "lucid/case/cache/invocation"
+require "lucid/case/cache/stale_on"
 
 module Lucid
   class Case
@@ -16,6 +17,7 @@ module Lucid
     module Cache
       def self.included(base)
         base.extend(ClassMethods)
+        base.extend(StaleOn)
         base.class_attribute :cache_setting, instance_accessor: false, instance_predicate: false, default: nil
         base.class_attribute :cache_duration_setting, instance_accessor: false, instance_predicate: false, default: nil
         base.class_attribute :cache_version_setting, instance_accessor: false, instance_predicate: false, default: 1
