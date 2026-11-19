@@ -63,6 +63,44 @@ class EventsGeneratorTest < Rails::Generators::TestCase
     end
   end
 
+  test "creates the deliveries migration" do
+    # arrange
+    # act
+    run_generator
+
+    # assert
+    assert_migration "db/migrate/create_lucid_case_deliveries.rb", /class CreateLucidCaseDeliveries < ActiveRecord::Migration/
+  end
+
+  test "deliveries migration creates the table, columns and unique index" do
+    # arrange
+    # act
+    run_generator
+
+    # assert
+    assert_migration "db/migrate/create_lucid_case_deliveries.rb" do |content|
+      assert_match(/create_table :lucid_case_deliveries/, content)
+      assert_match(/t\.string :event_uuid, null: false/, content)
+      assert_match(/t\.string :subscriber, null: false/, content)
+      assert_match(/t\.datetime :created_at, null: false/, content)
+      assert_match(/add_index :lucid_case_deliveries, %i\[event_uuid subscriber\], unique: true/, content)
+    end
+  end
+
+  test "the two migrations have distinct ordered timestamps" do
+    # arrange
+    # act
+    run_generator
+    versions = Dir.glob(File.join(destination_root, "db/migrate/*.rb")).to_h do |path|
+      [File.basename(path)[/\A\d+_(.*)\.rb\z/, 1], File.basename(path)[/\A\d+/].to_i]
+    end
+
+    # assert
+    assert_equal %w[create_lucid_case_deliveries create_lucid_case_events], versions.keys.sort
+    refute_equal versions["create_lucid_case_events"], versions["create_lucid_case_deliveries"]
+    assert_operator versions["create_lucid_case_events"], :<, versions["create_lucid_case_deliveries"]
+  end
+
   test "creates the initializer configuring events" do
     # arrange
     # act

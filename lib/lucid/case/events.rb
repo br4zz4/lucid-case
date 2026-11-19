@@ -7,6 +7,7 @@ require "lucid/case/events/record"
 require "lucid/case/events/outbox_store"
 require "lucid/case/events/relay"
 require "lucid/case/events/transports/active_job"
+require "lucid/case/events/deduplication"
 require "lucid/case/events/delivery_job"
 
 module Lucid

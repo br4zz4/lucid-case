@@ -4,7 +4,7 @@ require "rails/generators/migration"
 module Lucid
   class Case
     module Generators
-      # Creates the outbox migration and config/initializers/lucid_case_events.rb.
+      # Creates the outbox and deduplication migrations and config/initializers/lucid_case_events.rb.
       #
       #   bin/rails g lucid:case:events
       class EventsGenerator < ::Rails::Generators::Base
@@ -22,6 +22,7 @@ module Lucid
 
         def create_migrations
           migration_template "create_lucid_case_events.rb.tt", "db/migrate/create_lucid_case_events.rb"
+          migration_template "create_lucid_case_deliveries.rb.tt", "db/migrate/create_lucid_case_deliveries.rb"
         end
 
         def create_initializer

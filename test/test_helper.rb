@@ -39,6 +39,13 @@ ActiveRecord::Schema.define do
     t.datetime :created_at, null: false
   end
   add_index :lucid_case_events, :uuid, unique: true
+
+  create_table :lucid_case_deliveries, force: true do |t|
+    t.string :event_uuid, null: false
+    t.string :subscriber, null: false
+    t.datetime :created_at, null: false
+  end
+  add_index :lucid_case_deliveries, %i[event_uuid subscriber], unique: true
 end
 
 class User < ActiveRecord::Base; end
@@ -142,6 +149,7 @@ class OutboxTest < EventsTest
     Lucid::Case.configuration.events.table_name = "lucid_case_events"
     record_class.reset_column_information
     record_class.delete_all
+    clear_deliveries
     clear_enqueued_jobs
   end
 
@@ -156,10 +164,26 @@ class OutboxTest < EventsTest
     record_class.reset_column_information
     record_class.delete_all
     record_class.reset_column_information
+    Lucid::Case.configuration.events.deliveries_table_name = "lucid_case_deliveries"
+    clear_deliveries
   end
 
   def record_class
     Lucid::Case::Events::Record
+  end
+
+  def deliveries_table
+    Lucid::Case.configuration.events.deliveries_table_name
+  end
+
+  def clear_deliveries(table = "lucid_case_deliveries")
+    connection = ActiveRecord::Base.connection
+    connection.execute("DELETE FROM #{connection.quote_table_name(table)}") if connection.table_exists?(table)
+  end
+
+  def delivery_count(table = deliveries_table)
+    connection = ActiveRecord::Base.connection
+    connection.select_value("SELECT COUNT(*) FROM #{connection.quote_table_name(table)}").to_i
   end
 
   def hold_events
