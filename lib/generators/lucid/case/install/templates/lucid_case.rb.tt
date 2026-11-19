@@ -1,0 +1,31 @@
+Lucid::Case.configure do |config|
+  # Commands run inside a transaction (with savepoint). Use `transaction :disabled`
+  # in a case that does external I/O, processes batches or must persist its own failure.
+  config.transaction = :enabled
+
+  # Queries are cached only when enabled here or with `cache :enabled` in the case.
+  config.cache = :disabled
+  config.cache_duration = 5.minutes
+
+  # Steps accumulate the content of `continue` / `skip_to` into the final result.
+  # Use `accumulate :disabled` in a case to keep only the final success/failure content.
+  config.accumulate = :enabled
+
+  # Logs each call, step, caught exception and result. Off by default; a case can use `logging :enabled`.
+  # Only names are logged unless log_values is true (values are filtered by filter_parameters).
+  config.logging = :disabled
+  # config.log_level = :info
+  # config.log_values = false  (or `logging :enabled, values: true` in a case)
+  # config.logger = Rails.logger
+
+  # Defaults to Rails.cache. Point to a dedicated store if you prefer.
+  # config.cache_store = ActiveSupport::Cache::RedisCacheStore.new(url: ENV["REDIS_URL"])
+
+  # Required when caching is in use: a callable returning the current tenant/scope,
+  # or :global for single-tenant apps. Cache entries never cross scopes.
+  # config.cache_scope = -> { Current.account&.id }
+  # config.cache_scope = :global
+
+  # Master switch. Defaults to the app's action_controller.perform_caching.
+  # config.perform_caching = true
+end
