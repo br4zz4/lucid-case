@@ -1,0 +1,10 @@
+class CreateLucidCaseCursors < ActiveRecord::Migration<%= migration_version %>
+  def change
+    create_table :lucid_case_cursors do |t|
+      t.string :subscriber, null: false
+      t.bigint :last_event_id, null: false, default: 0
+    end
+
+    add_index :lucid_case_cursors, :subscriber, unique: true
+  end
+end

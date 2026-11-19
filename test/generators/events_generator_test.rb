@@ -87,7 +87,30 @@ class EventsGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  test "the two migrations have distinct ordered timestamps" do
+  test "creates the cursors migration" do
+    # arrange
+    # act
+    run_generator
+
+    # assert
+    assert_migration "db/migrate/create_lucid_case_cursors.rb", /class CreateLucidCaseCursors < ActiveRecord::Migration/
+  end
+
+  test "cursors migration creates the table, columns and unique index" do
+    # arrange
+    # act
+    run_generator
+
+    # assert
+    assert_migration "db/migrate/create_lucid_case_cursors.rb" do |content|
+      assert_match(/create_table :lucid_case_cursors/, content)
+      assert_match(/t\.string :subscriber, null: false/, content)
+      assert_match(/t\.bigint :last_event_id, null: false, default: 0/, content)
+      assert_match(/add_index :lucid_case_cursors, :subscriber, unique: true/, content)
+    end
+  end
+
+  test "the three migrations have distinct ordered timestamps" do
     # arrange
     # act
     run_generator
@@ -96,9 +119,10 @@ class EventsGeneratorTest < Rails::Generators::TestCase
     end
 
     # assert
-    assert_equal %w[create_lucid_case_deliveries create_lucid_case_events], versions.keys.sort
-    refute_equal versions["create_lucid_case_events"], versions["create_lucid_case_deliveries"]
+    assert_equal %w[create_lucid_case_cursors create_lucid_case_deliveries create_lucid_case_events], versions.keys.sort
+    assert_equal 3, versions.values.uniq.size
     assert_operator versions["create_lucid_case_events"], :<, versions["create_lucid_case_deliveries"]
+    assert_operator versions["create_lucid_case_deliveries"], :<, versions["create_lucid_case_cursors"]
   end
 
   test "creates the initializer configuring events" do

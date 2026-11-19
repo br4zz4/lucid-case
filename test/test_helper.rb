@@ -46,6 +46,12 @@ ActiveRecord::Schema.define do
     t.datetime :created_at, null: false
   end
   add_index :lucid_case_deliveries, %i[event_uuid subscriber], unique: true
+
+  create_table :lucid_case_cursors, force: true do |t|
+    t.string :subscriber, null: false
+    t.bigint :last_event_id, null: false, default: 0
+  end
+  add_index :lucid_case_cursors, :subscriber, unique: true
 end
 
 class User < ActiveRecord::Base; end
@@ -151,6 +157,7 @@ class OutboxTest < EventsTest
     record_class.delete_all
     clear_deliveries
     clear_enqueued_jobs
+    clear_deliveries(cursors_table)
   end
 
   def teardown
@@ -166,6 +173,11 @@ class OutboxTest < EventsTest
     record_class.reset_column_information
     Lucid::Case.configuration.events.deliveries_table_name = "lucid_case_deliveries"
     clear_deliveries
+    clear_deliveries(cursors_table)
+  end
+
+  def cursors_table
+    "lucid_case_cursors"
   end
 
   def record_class
