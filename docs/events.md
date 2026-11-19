@@ -9,7 +9,7 @@ bin/rails g lucid:case:events
 bin/rails db:migrate
 ```
 
-The generator creates the migrations for `lucid_case_events` and `lucid_case_deliveries`, and `config/initializers/lucid_case_events.rb` with `recording = :enabled`, the `:outbox` store (and `:inline` in the test environment) and every other option commented with its default. Without the migration, keep `config.events.recording = :disabled` (the default).
+The generator creates the migrations for `lucid_case_events`, `lucid_case_deliveries` (deduplication) and `lucid_case_cursors` (ordered delivery), and `config/initializers/lucid_case_events.rb` with `recording = :enabled`, the `:outbox` store (and `:inline` in the test environment) and every other option commented with its default. Without the migration, keep `config.events.recording = :disabled` (the default).
 
 ## Case events
 
@@ -92,7 +92,7 @@ Lucid::Case.subscribe(Enrollment::Approve, as: :guardian_mailer) do |event|
 end
 ```
 
-`as:` is the identity of the subscriber and is required when deduplication is on or the subscription is `ordered`.
+`as:` is the identity of the subscriber and is required when deduplication is on or the subscription is `ordered`. Without it the gem derives an id from the file and line of the declaration, which is stable across processes and reloads; give an explicit `as:` if you move the code around while events are pending.
 
 ### Where subscribers load
 
@@ -154,7 +154,7 @@ Run it every minute with cron or your job backend's recurring tasks (solid_queue
 
 `config.events.retention` (default `7.days`) says how long delivered rows are kept, and the sweep deletes older ones when `config.events.purge` is `:enabled`. Rows that were not delivered are never deleted. The outbox is not an audit trail: keep your own record if you need one.
 
-With `store = :inline` there is no table: subscribers run in-process right after the commit. It is at-most-once, which is fine in tests and in apps that do not want the migration. If a subscriber raises, the others still run and the first error is raised afterwards.
+With `store = :inline` there is no table: subscribers run in-process right after the commit. It is at-most-once, which is fine in tests and in apps that do not want the migration. If a subscriber raises, the others of that event still run and the first error is raised afterwards; the events recorded later in the same transaction are not delivered, because the commit callbacks stop at the first error. Use the outbox when events cannot be lost.
 
 ### Delivery is at least once
 
@@ -181,7 +181,9 @@ Subscribe with `ordered: true` to receive the events of a subscription in the or
 subscribe Ledger::Post, ordered: true
 ```
 
-If the second event fails, the third waits until the second passes. That is what ordering costs, so it is off by default and per subscription. See "Ordered delivery" below.
+If the second event fails, the third waits until the second passes. That is what ordering costs, so it is off by default and per subscription. Order follows the id of the outbox row: two transactions that commit out of id order can be delivered in commit order, so do not use it to rebuild state that depends on a strict global sequence. A subscriber that starts being ordered begins at position 0 and replays the matching rows still in the table (up to `retention`). See "Ordered delivery" below.
+
+Records that were destroyed before delivery cannot be reloaded: for a command that destroys its record, shape the event with `event_payload` and ids. A delivery job drops an event whose records are gone (and logs it).
 
 ## Context
 
@@ -194,7 +196,7 @@ config.events.around_delivery = lambda do |context, &block|
 end
 ```
 
-`context` must be serializable. The subscriber also sees it as `event.context`. With one schema per tenant, capture the schema in `context` and switch to it in `around_delivery`. The outbox then needs a table every tenant can see; `table_name` accepts a qualified name:
+`context` must be a JSON friendly Hash (ids and strings, not records). The subscriber also sees it as `event.context`. With one schema per tenant, capture the schema in `context` and switch to it in `around_delivery`. The outbox then needs a table every tenant can see; `table_name` accepts a qualified name:
 
 ```ruby
 config.events.table_name = "public.lucid_case_events"

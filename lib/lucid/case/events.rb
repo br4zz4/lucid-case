@@ -57,18 +57,28 @@ module Lucid
         raise Error::RelayFailed, "transport failed for events: #{failed.join(', ')}" if failed.any?
       end
 
-      def self.ordered_cursor_floor
-        ids = Registry.subscriptions.select(&:ordered).map(&:subscriber_id).uniq
-        return nil if ids.empty?
+      # @return [ActiveRecord::Relation] outbox rows that may match one of +subscriptions+ (by kind, name and step)
+      def self.rows_for(subscriptions)
+        subscriptions.map { |item| Record.where(kind: item.kind.to_s, name: item.target_name, step: item.step&.to_s) }.reduce(:or)
+      end
 
-        ids.map { |id| Cursor.find_by(subscriber: id)&.last_event_id || 0 }.min
+      def self.ordered_pending_ids
+        by_subscriber = Registry.subscriptions.select(&:ordered).group_by(&:subscriber_id)
+        by_subscriber.filter_map do |subscriber_id, subscriptions|
+          floor = Cursor.find_by(subscriber: subscriber_id)&.last_event_id || 0
+          rows_for(subscriptions).where("id > ?", floor).select(:id)
+        end.reduce(:or)
       end
 
       def self.purge
+        config = Lucid::Case.configuration
         scope = Record.where.not(delivered_at: nil).where("delivered_at < ?", Time.current - Lucid::Case.configuration.events.retention)
-        floor = ordered_cursor_floor
-        scope = scope.where("id <= ?", floor) if floor
+        pending = ordered_pending_ids
+        scope = scope.where.not(id: pending) if pending
         scope.delete_all
+        return unless config.events.deduplication == :enabled
+
+        DeliveryRecord.where("created_at < ?", Time.current - config.events.retention).delete_all
       end
 
       def self.included(base)
@@ -126,7 +136,7 @@ module Lucid
         return unless self.class.events_recording?
 
         block = self.class.event_payload_block
-        input = block ? {} : Lucid::Case.configuration.parameter_filter.filter(attribute_values)
+        input = block ? {} : Lucid::Case.configuration.parameter_filter.filter(Serializer.normalize(attribute_values))
         content = block ? instance_exec(result, &block) : result.content
         lucid_record_event(kind: :case, name: Events.event_name(self.class), type: result.type, success: result.success?, input: input, content: content)
       end
@@ -167,12 +177,19 @@ module Lucid
       end
 
       def lucid_build_event(kind, name, step, type, success, input, content, context)
-        input, content, context = Serializer.round_trip(input, content, context)
+        input, content, context = lucid_round_trip(input, content, context)
         Event.new(id: SecureRandom.uuid, kind: kind, name: name, source: self.class.name, step: step, type: type, success: success,
                   input: input, content: content, context: context, occurred_at: Time.current)
       rescue ActiveJob::SerializationError => error
         lucid_log(Events::Log.not_recorded(name), level: :error) unless self.class.transactional?
         raise Error::UnserializableEvent, "event #{name.inspect} of #{self.class.name} has a payload that cannot be serialized: #{error.message}"
+      end
+
+      def lucid_round_trip(input, content, context)
+        Serializer.round_trip(input, content, context)
+      rescue ActiveJob::DeserializationError
+        Serializer.dump(input, content, context)
+        [Serializer.normalize(input), Serializer.normalize(content), Serializer.normalize(context)]
       end
 
       def lucid_log_events_kept

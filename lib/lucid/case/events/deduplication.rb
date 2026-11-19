@@ -6,20 +6,9 @@ module Lucid
         self.inheritance_column = nil
         self.record_timestamps = false
 
-        class << self
-          def table_name
-            configured = Lucid::Case.configuration.events.deliveries_table_name
-            if @table_name != configured && !@switching_table
-              @switching_table = true
-              begin
-                self.table_name = configured
-              ensure
-                @switching_table = false
-              end
-            end
-            @table_name || configured
-          end
-        end
+        extend ConfiguredTable
+        configured_table :deliveries_table_name
+
       end
 
       # Skips Deliveries already made when +config.events.deduplication+ is enabled.

@@ -7,20 +7,10 @@ module Lucid
         self.inheritance_column = nil
         self.record_timestamps = false
 
-        class << self
-          def table_name
-            configured = Lucid::Case.configuration.events.table_name
-            if @table_name != configured && !@switching_table
-              @switching_table = true
-              begin
-                self.table_name = configured
-              ensure
-                @switching_table = false
-              end
-            end
-            @table_name || configured
-          end
+        extend ConfiguredTable
+        configured_table :table_name
 
+        class << self
           def relayable(now = Time.current)
             where(delivered_at: nil).where("claimed_at IS NULL OR claimed_at < ?", now - Lucid::Case.configuration.events.claim_timeout)
           end

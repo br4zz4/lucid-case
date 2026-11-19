@@ -9,7 +9,7 @@ module Lucid
         def perform(subscriber_id)
           nil while step(subscriber_id)
         rescue StandardError => error
-          return retry_job(wait: 0) if executions < Lucid::Case.configuration.events.delivery_attempts
+          return retry_job(wait: ((executions**4) + 2).seconds) if executions < Lucid::Case.configuration.events.delivery_attempts
 
           handler = Registry.subscriptions.find { |item| item.subscriber_id == subscriber_id }&.handler
           Log.emit(Log.enabled_for(handler), "ordered delivery to #{subscriber_id} gave up after #{executions} attempts: #{error.class}")
@@ -36,10 +36,10 @@ module Lucid
         end
 
         def next_row(cursor, subscriptions)
-          Record.where("id > ?", cursor.last_event_id).order(:id).each do |row|
-            event = row.to_event
+          candidates = Events.rows_for(subscriptions).where("id > ?", cursor.last_event_id).order(:id)
+          candidates.each do |row|
             subscription = subscriptions.find do |item|
-              item.match?(kind: event.kind, name: event.name, step: event.step, type: event.type, success: event.success?)
+              item.match?(kind: row.kind.to_sym, name: row.name, step: row.step&.to_sym, type: row.result_type, success: row.success)
             end
             return [row, subscription] if subscription
           end
