@@ -98,6 +98,7 @@ module Lucid
 
           target = nil
           outcome = lucid_run_step(name, block)
+          lucid_record_step_event(name, outcome)
 
           case outcome
           when Result then return outcome.merge_content(accumulated)

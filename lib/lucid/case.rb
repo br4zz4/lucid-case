@@ -15,6 +15,7 @@ require "lucid/case/event"
 require "lucid/case/events/subscription"
 require "lucid/case/events/registry"
 require "lucid/case/events/subscribing"
+require "lucid/case/events"
 require "lucid/case/validations"
 require "lucid/case/kind_validator"
 require "lucid/case/kinds"
@@ -56,6 +57,7 @@ module Lucid
     include Catching
     include Finally
     include Cache
+    include Events
     include Events::Subscribing
 
     class << self
@@ -135,6 +137,7 @@ module Lucid
         result
       rescue StandardError => error
         lucid_log_call_raised(error)
+        lucid_log_events_kept
         raise
       end
     end
@@ -147,7 +150,9 @@ module Lucid
     private
 
     def lucid_run
-      lucid_guarded { lucid_isolated { lucid_evaluate } }
+      result = lucid_guarded { lucid_isolated { lucid_evaluate } }
+      lucid_record_case_event(result) unless @lucid_case_event_recorded
+      result
     ensure
       lucid_run_finally
     end
@@ -160,6 +165,10 @@ module Lucid
       result = valid? ? lucid_run_body : lucid_invalid_attributes_result
       lucid_ensure_result!(result)
       lucid_run_hooks(result)
+      if result.success?
+        lucid_record_case_event(result)
+        @lucid_case_event_recorded = true
+      end
       result
     end
 
