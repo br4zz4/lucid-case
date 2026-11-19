@@ -1,4 +1,5 @@
 require "time"
+require "active_job"
 
 module Lucid
   class Case
@@ -50,11 +51,11 @@ module Lucid
         @success
       end
 
-      # @return [Hash{Symbol => Object}] JSON-friendly representation
+      # @return [Hash{Symbol => Object}] JSON-friendly representation; records in +input+ and +content+ are GlobalIDs
       def to_h
         {
           id: id, kind: kind.to_s, name: name, source: source, step: step&.to_s, type: type&.to_s,
-          success: success?, input: input, content: content, context: context,
+          success: success?, input: Event.dump(input), content: Event.dump(content), context: Event.dump(context),
           occurred_at: occurred_at.utc.iso8601(6)
         }
       end
@@ -66,8 +67,7 @@ module Lucid
         new(
           id: data[:id], kind: data[:kind], name: data[:name], source: data[:source], step: data[:step],
           type: data[:type], success: data.fetch(:success, true),
-          input: deep_symbolize(data[:input] || {}), content: deep_symbolize(data[:content] || {}),
-          context: deep_symbolize(data[:context] || {}), occurred_at: parse_time(data[:occurred_at])
+          input: load(data[:input]), content: load(data[:content]), context: load(data[:context]), occurred_at: parse_time(data[:occurred_at])
         )
       end
 
@@ -79,6 +79,15 @@ module Lucid
       def hash
         to_h.hash
       end
+
+      def self.dump(value)
+        ActiveJob::Arguments.serialize([value]).first
+      end
+
+      def self.load(value)
+        deep_symbolize(ActiveJob::Arguments.deserialize([value || {}]).first)
+      end
+      private_class_method :load
 
       def self.deep_symbolize(value)
         case value

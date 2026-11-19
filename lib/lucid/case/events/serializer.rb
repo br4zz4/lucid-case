@@ -17,9 +17,11 @@ module Lucid
           ActiveJob::Arguments.serialize([normalize(input), normalize(content), normalize(context)])
         end
 
+        # @return [Object] +value+ with ActiveModel::Errors and ActionController::Parameters turned into Hashes
         def normalize(value)
           case value
           when ActiveModel::Errors then value.to_hash
+          when ->(item) { item.respond_to?(:to_unsafe_h) } then normalize(value.to_unsafe_h)
           when Hash then value.transform_values { |item| normalize(item) }
           when Array then value.map { |item| normalize(item) }
           else value

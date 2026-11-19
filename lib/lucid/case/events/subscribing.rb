@@ -88,6 +88,11 @@ module Lucid
             on
           end
 
+          def lucid_block_location
+            location = caller_locations.find { |item| !item.path.end_with?("lucid/case/events/subscribing.rb") }
+            "#{File.basename(File.dirname(location.path))}/#{File.basename(location.path)}:#{location.lineno}"
+          end
+
           def lucid_resolve_subscriber_id(subscriber_id, ordered, global)
             if subscriber_id.nil?
               needs_identity = global && (ordered || Lucid::Case.configuration.events.deduplication == :enabled)
@@ -95,7 +100,7 @@ module Lucid
               raise Error::InvalidSubscription, "an anonymous Subscriber class cannot subscribe" unless global
             end
 
-            subscriber_id&.to_s || "block:#{SecureRandom.hex(4)}"
+            subscriber_id&.to_s || "block:#{lucid_block_location}"
           end
         end
       end

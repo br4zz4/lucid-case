@@ -81,9 +81,11 @@ module Lucid
 
         # @raise [ArgumentError] when deduplication is enabled with the +:inline+ store
         def validate!
-          return self unless deduplication == :enabled && store == :inline
+          raise ArgumentError, "deduplication requires store :outbox (the :inline store has no table)" if deduplication == :enabled && store == :inline
+          raise ArgumentError, "transport must be :active_job or respond to publish(event), got #{transport.inspect}" unless transport == :active_job || transport.respond_to?(:publish)
+          raise ArgumentError, "delivery_attempts must be a positive Integer, got #{delivery_attempts.inspect}" unless delivery_attempts.is_a?(Integer) && delivery_attempts.positive?
 
-          raise ArgumentError, "deduplication requires store :outbox (the :inline store has no table)"
+          self
         end
 
         private
