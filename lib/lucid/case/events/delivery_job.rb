@@ -17,7 +17,11 @@ module Lucid
         private
 
         def deliver_with_retry(subscription, event)
-          Dispatcher.deliver(subscription, event)
+          if Deduplication.enabled?
+            Deduplication.once(event, subscription) { Dispatcher.deliver(subscription, event) }
+          else
+            Dispatcher.deliver(subscription, event)
+          end
         rescue StandardError => error
           return retry_job(wait: 0) if executions < Lucid::Case.configuration.events.delivery_attempts
 

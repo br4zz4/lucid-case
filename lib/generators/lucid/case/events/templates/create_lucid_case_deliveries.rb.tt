@@ -1,0 +1,11 @@
+class CreateLucidCaseDeliveries < ActiveRecord::Migration<%= migration_version %>
+  def change
+    create_table :lucid_case_deliveries do |t|
+      t.string :event_uuid, null: false
+      t.string :subscriber, null: false
+      t.datetime :created_at, null: false
+    end
+
+    add_index :lucid_case_deliveries, %i[event_uuid subscriber], unique: true
+  end
+end
