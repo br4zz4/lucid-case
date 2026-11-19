@@ -102,7 +102,7 @@ module Lucid
 
       # @return [String] +"enrollment.approve"+ for +Enrollment::Approve+
       def self.event_name(klass)
-        klass.name.underscore.tr("/", ".")
+        klass.name.to_s.underscore.tr("/", ".")
       end
     end
   end
