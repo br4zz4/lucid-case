@@ -68,3 +68,7 @@ end
 ```
 
 More in [Testing](testing.md).
+
+## Events
+
+To publish events and react to them, run `bin/rails g lucid:case:events`, migrate, and write a `Lucid::Case::Subscriber` with `subscribe`. See [Events](events.md).

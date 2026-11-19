@@ -3,6 +3,7 @@ require "lucid/case/events/serializer"
 require "lucid/case/events/dispatcher"
 require "lucid/case/events/inline_store"
 require "lucid/case/events/log"
+require "lucid/case/events/recorder"
 require "lucid/case/events/record"
 require "lucid/case/events/outbox_store"
 require "lucid/case/events/relay"
@@ -85,7 +86,10 @@ module Lucid
 
         # @return [Boolean] whether this Command records Events right now
         def events_recording?
-          command? && (events_setting || Lucid::Case.configuration.events.recording) == :enabled
+          return false unless command?
+          return events_setting == :enabled unless events_setting.nil?
+
+          Events::Recorder.capturing? || Lucid::Case.configuration.events.recording == :enabled
         end
       end
 
@@ -123,7 +127,7 @@ module Lucid
         event_name = Events.event_name(self.class)
         lucid_trigger_stale(kind: :step, name: event_name, step: name, type: :ok, success: true, input: attribute_values, content: outcome.content)
         return unless self.class.events_recording?
-        return if Registry.matching(kind: :step, name: event_name, step: name, type: :ok, success: true).empty?
+        return if !Recorder.capturing? && Registry.matching(kind: :step, name: event_name, step: name, type: :ok, success: true).empty?
 
         type = outcome.is_a?(Result) ? outcome.type : :ok
         lucid_record_event(kind: :step, name: event_name, step: name, type: type, success: true, input: {}, content: outcome.content)
@@ -144,6 +148,8 @@ module Lucid
         event = lucid_build_event(kind, name, step, type, success, input, content, context)
         (@lucid_recorded_events ||= []) << event
         lucid_log(Events::Log.recorded(event))
+        return Recorder.record(event) if Recorder.capturing?
+
         config.store == :inline ? InlineStore.record(event) : OutboxStore.record(event, log: self.class.logging?)
         event
       end

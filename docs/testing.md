@@ -113,3 +113,53 @@ ActiveSupport::Notifications.unsubscribe(subscriber)
 
 assert_equal :ok, events.first[:type]
 ```
+
+## Events
+
+In the test environment the generator sets `config.events.store = :inline`, so there is no table to clean and subscribers run right after the commit. To assert on the events themselves, include the helpers (they are not loaded by `require "lucid/case"`).
+
+Minitest or ActiveSupport::TestCase:
+
+```ruby
+require "lucid/case/test_helpers"
+
+class EnrollmentApproveTest < ActiveSupport::TestCase
+  include Lucid::Case::TestHelpers
+
+  test "emits the case event" do
+    assert_event(Enrollment::Approve, type: :ok, content: { enrollment: enrollment }) do
+      Enrollment::Approve.call(enrollment: enrollment)
+    end
+  end
+
+  test "emits nothing on invalid input" do
+    assert_no_event(Enrollment::Approve, type: :ok) { Enrollment::Approve.call(enrollment: nil) }
+  end
+
+  test "lists everything recorded" do
+    events = capture_events { Payment::Charge.call(payment: payment) }
+    assert_equal %w[credit_limit_reached payment.charge], events.map(&:name)
+  end
+end
+```
+
+RSpec:
+
+```ruby
+require "lucid/case/rspec"
+
+RSpec.describe Enrollment::Approve do
+  it "emits the case event" do
+    expect { described_class.call(enrollment: enrollment) }
+      .to emit_event(described_class).with(type: :ok, content: { enrollment: enrollment })
+  end
+
+  it "emits nothing on invalid input" do
+    expect { described_class.call(enrollment: nil) }.not_to emit_event(described_class)
+  end
+end
+```
+
+Put the `require` in `rails_helper.rb` / `test_helper.rb`. `content:` and `input:` match as subsets. A custom event is matched by name (`emit_event(:credit_limit_reached)`) and a step event with `step:`.
+
+Events are captured when they are recorded: nothing is written to the outbox, no subscriber runs, no job is enqueued and no table is needed. That works in a transactional test, and with `recording` off, as long as the command does not declare `events :disabled`. To test the reaction, call the subscriber directly with an event, or run the full path in a test that is not transactional (see Hooks above) with `store = :inline` or `perform_enqueued_jobs`.

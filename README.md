@@ -109,6 +109,28 @@ Dashboard::Evolution.stale
 
 The second call with the same period comes from the cache and runs nothing. `fresh` recomputes and stores again. `stale(period: period)` drops that one entry, `stale(:period)` drops every entry that depends on `period`, and `stale` with no arguments drops them all. See [Queries](docs/queries.md) and [Cache](docs/cache.md).
 
+## Events
+
+A command can publish what happened, and a subscriber reacts without the command knowing about it. The event is written in the command's transaction and delivered after the commit.
+
+```ruby
+class Billing::OnEnrollmentApproved < Lucid::Case::Subscriber
+  subscribe Enrollment::Approve
+
+  def call!
+    Billing::StartInvoice.call(enrollment: event.content[:enrollment])
+    success
+  end
+end
+
+class Dashboard::Evolution < Lucid::Case::Query
+  cache duration: 5.minutes
+  stale_on Enrollment::Approve
+end
+```
+
+Every command that records produces a Case event named after its class, `emit(:credit_limit_reached, ...)` adds custom ones, and a query can drop its cache with `stale_on`. See [Events](docs/events.md) and [Event transports](docs/event-transports.md).
+
 ## Another way to write them
 
 `Lucid::Case::Command` and `Lucid::Case::Query` are the same classes with the kind already set:
@@ -119,6 +141,10 @@ class Users::Create < Lucid::Case::Command
 end
 
 class Dashboard::Evolution < Lucid::Case::Query
+  ...
+end
+
+class Billing::OnEnrollmentApproved < Lucid::Case::Subscriber
   ...
 end
 ```
@@ -154,6 +180,8 @@ Use a query when the case only reads or computes. It never gets a transaction or
 - [Steps](docs/steps.md)
 - [Catch and finally](docs/catch.md)
 - [Cache](docs/cache.md)
+- [Events](docs/events.md)
+- [Event transports](docs/event-transports.md)
 - [Logging](docs/logging.md)
 - [Result](docs/result.md)
 - [Configuration](docs/configuration.md)

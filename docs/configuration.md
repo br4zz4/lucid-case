@@ -34,6 +34,28 @@ end
 
 `Lucid::Case.configuration` returns the current object, and `Lucid::Case.reset_configuration!` restores the defaults, which is useful in tests.
 
+## Events
+
+Options under `config.events`, written with every default by `bin/rails g lucid:case:events` (see [Events](events.md)).
+
+| Option | Default | |
+|---|---|---|
+| `recording` | `:disabled` | `:enabled` or `:disabled`. Whether commands record events. A command overrides it with `events`. |
+| `store` | `:outbox` | `:outbox` (table, at-least-once) or `:inline` (in-process, no table). |
+| `transport` | `:active_job` | `:active_job`, or an object that responds to `publish(event)`. See [Event transports](event-transports.md). |
+| `queue` | `:default` | Queue of the delivery jobs. |
+| `delivery_attempts` | `5` | Executions of a delivery job before it gives up. |
+| `table_name` | `"lucid_case_events"` | The outbox table. Accepts a qualified name such as `"public.lucid_case_events"`. |
+| `deliveries_table_name` | `"lucid_case_deliveries"` | Deduplication table. |
+| `cursors_table_name` | `"lucid_case_cursors"` | Cursors of ordered subscriptions. |
+| `retention` | `7.days` | How long delivered rows are kept. |
+| `purge` | `:enabled` | Whether `relay_pending` deletes delivered rows older than `retention`. |
+| `claim_timeout` | `5.minutes` | How long a claimed row is held before another relay may take it. |
+| `deduplication` | `:disabled` | Skip deliveries already made. Needs `:outbox`; `configure` raises `ArgumentError` with `:inline`. |
+| `load_paths` | `%w[app/models]` | Directories loaded at boot and on reload so subscribers register. Must exist. |
+| `context` | `nil` | Callable whose Hash is captured with each event. |
+| `around_delivery` | `nil` | `->(context, &block)` that wraps each delivery. |
+
 ## Boot validation
 
 The Railtie checks the configuration in `after_initialize`. `configure`, and a `cache` declaration made after boot, check it again, so classes that load lazily fail fast too.
