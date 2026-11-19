@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+Events.
+
+- `Lucid::Case::Subscriber` kind and `subscribe` (class macro, external call and `Lucid::Case.subscribe(..., as:) { }`), with `on:`, `step:` and `ordered:`.
+- Case events for every recording Command, custom events with `emit`, step events for subscribed steps, `event_payload` and `events :enabled|:disabled`.
+- `Lucid::Case::Event` and `config.events`.
+- Transactional outbox (`lucid_case_events`), relay after commit, `Lucid::Case::Events.relay_pending` with retention and purge, `:inline` store, `:active_job` transport and custom transports (`publish(event)`).
+- Opt-in deduplication of deliveries and ordered delivery per subscription.
+- `stale_on` to drop query cache entries when an event happens.
+- Event logging, `Lucid::Case::TestHelpers` and RSpec matchers (`lucid/case/rspec`), and `rails g lucid:case:events`.
+- `activejob` is now a dependency.
+
+## 0.1.0
 
 Initial release.
 

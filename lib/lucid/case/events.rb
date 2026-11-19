@@ -10,6 +10,8 @@ require "lucid/case/events/relay"
 require "lucid/case/events/transports/active_job"
 require "lucid/case/events/deduplication"
 require "lucid/case/events/delivery_job"
+require "lucid/case/events/cursor"
+require "lucid/case/events/ordered_delivery_job"
 
 module Lucid
   class Case
@@ -55,8 +57,18 @@ module Lucid
         raise Error::RelayFailed, "transport failed for events: #{failed.join(', ')}" if failed.any?
       end
 
+      def self.ordered_cursor_floor
+        ids = Registry.subscriptions.select(&:ordered).map(&:subscriber_id).uniq
+        return nil if ids.empty?
+
+        ids.map { |id| Cursor.find_by(subscriber: id)&.last_event_id || 0 }.min
+      end
+
       def self.purge
-        Record.where.not(delivered_at: nil).where("delivered_at < ?", Time.current - Lucid::Case.configuration.events.retention).delete_all
+        scope = Record.where.not(delivered_at: nil).where("delivered_at < ?", Time.current - Lucid::Case.configuration.events.retention)
+        floor = ordered_cursor_floor
+        scope = scope.where("id <= ?", floor) if floor
+        scope.delete_all
       end
 
       def self.included(base)
