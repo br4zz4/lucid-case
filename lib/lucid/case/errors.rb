@@ -25,6 +25,21 @@ module Lucid
 
       # Raised at boot when caching is on and +cache_scope+ was not configured.
       class MissingCacheScope < Error; end
+
+      # Raised at class load time when +subscribe+ is declared outside a Subscriber.
+      class SubscribeOutsideSubscriber < Error; end
+
+      # Raised when a subscription has an invalid target, step, +on+ or identity.
+      class InvalidSubscription < Error; end
+
+      # Raised when +emit+ is called by a case that is not a Command.
+      class EmitOutsideCommand < Error; end
+
+      # Raised when the payload of an Event cannot be serialized.
+      class UnserializableEvent < Error; end
+
+      # Raised by +relay_pending+ after a batch in which a transport failed.
+      class RelayFailed < Error; end
     end
   end
 end

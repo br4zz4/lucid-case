@@ -38,7 +38,11 @@ module Lucid
       # @return [Boolean] master switch for caching (default: the app's +perform_caching+)
       attr_writer :perform_caching
 
+      # @return [Lucid::Case::Events::Configuration]
+      attr_reader :events
+
       def initialize
+        @events = Events::Configuration.new
         @transaction = :enabled
         @cache = :disabled
         @accumulate = :enabled

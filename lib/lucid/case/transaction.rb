@@ -20,7 +20,7 @@ module Lucid
 
         # @return [Boolean] whether this case runs inside a transaction
         def transactional?
-          command? && (transaction_setting || Lucid::Case.configuration.transaction) == :enabled
+          (command? || subscriber?) && (transaction_setting || Lucid::Case.configuration.transaction) == :enabled
         end
       end
 

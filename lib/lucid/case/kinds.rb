@@ -1,10 +1,10 @@
 module Lucid
   class Case
-    # A case is either a Command (writes, may run in a transaction and fire hooks)
-    # or a Query (read-only, cacheable). Declare it with +kind+ or by inheriting from
+    # A case is a Command (writes, may run in a transaction and fire hooks), a Query
+    # (read-only, cacheable) or a Subscriber (reacts to Events). Declare it with +kind+ or by inheriting from
     # Lucid::Case::Command / Lucid::Case::Query.
     module Kinds
-      KINDS = %i[command query].freeze
+      KINDS = %i[command query subscriber].freeze
 
       def self.included(base)
         base.extend(ClassMethods)
@@ -38,6 +38,10 @@ module Lucid
 
         def query?
           case_kind == :query
+        end
+
+        def subscriber?
+          case_kind == :subscriber
         end
 
         # @api private
