@@ -3,6 +3,11 @@ require "lucid/case/events/serializer"
 require "lucid/case/events/dispatcher"
 require "lucid/case/events/inline_store"
 require "lucid/case/events/log"
+require "lucid/case/events/record"
+require "lucid/case/events/outbox_store"
+require "lucid/case/events/relay"
+require "lucid/case/events/transports/active_job"
+require "lucid/case/events/delivery_job"
 
 module Lucid
   class Case
@@ -22,6 +27,36 @@ module Lucid
     #     end
     #   end
     module Events
+      # @return [#publish] the configured transport
+      def self.transport
+        configured = Lucid::Case.configuration.events.transport
+        configured == :active_job ? Transports::ActiveJob : configured
+      end
+
+      # Relays rows left pending (for example after a crash between commit and relay) and purges old delivered rows.
+      # Schedule it (cron, solid_queue recurring).
+      #
+      # @raise [Lucid::Case::Error::RelayFailed] after the whole batch, when a transport failed
+      def self.relay_pending(batch_size: 500)
+        config = Lucid::Case.configuration
+        log = config.logging == :enabled
+        failed = []
+        last_id = 0
+        loop do
+          rows = Record.relayable.where("created_at < ?", 1.minute.ago).where("id > ?", last_id).order(:id).limit(batch_size).pluck(:id, :uuid)
+          break if rows.empty?
+
+          last_id = rows.last.first
+          failed.concat(Relay.relay(rows.map(&:last), log: log))
+        end
+        purge if config.events.purge == :enabled
+        raise Error::RelayFailed, "transport failed for events: #{failed.join(', ')}" if failed.any?
+      end
+
+      def self.purge
+        Record.where.not(delivered_at: nil).where("delivered_at < ?", Time.current - Lucid::Case.configuration.events.retention).delete_all
+      end
+
       def self.included(base)
         base.extend(ClassMethods)
         base.class_attribute :events_setting, instance_accessor: false, instance_predicate: false, default: nil
@@ -87,13 +122,11 @@ module Lucid
 
       def lucid_record_event(kind:, name:, type:, success:, input:, content:, step: nil)
         config = Lucid::Case.configuration.events
-        raise NotImplementedError, "config.events.store :outbox is not available yet; use :inline" unless config.store == :inline
-
         context = config.context&.call || {}
         event = lucid_build_event(kind, name, step, type, success, input, content, context)
         (@lucid_recorded_events ||= []) << event
         lucid_log(Events::Log.recorded(event))
-        InlineStore.record(event)
+        config.store == :inline ? InlineStore.record(event) : OutboxStore.record(event, log: self.class.logging?)
         event
       end
 

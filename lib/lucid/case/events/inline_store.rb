@@ -5,7 +5,7 @@ module Lucid
       module InlineStore
         module_function
 
-        def record(event)
+        def record(event, **)
           ActiveRecord.after_all_transactions_commit { Dispatcher.dispatch(event) }
         end
       end

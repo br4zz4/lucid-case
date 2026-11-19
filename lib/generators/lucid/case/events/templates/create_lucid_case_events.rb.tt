@@ -1,0 +1,24 @@
+class CreateLucidCaseEvents < ActiveRecord::Migration<%= migration_version %>
+  def change
+    create_table :lucid_case_events do |t|
+      t.string :uuid, null: false
+      t.string :kind, null: false
+      t.string :name, null: false
+      t.string :source
+      t.string :step
+      t.string :result_type
+      t.boolean :success, null: false, default: true
+      t.json :payload, null: false
+      t.json :context, null: false
+      t.datetime :occurred_at, null: false
+      t.datetime :claimed_at
+      t.string :claim_token
+      t.datetime :delivered_at
+      t.datetime :created_at, null: false
+    end
+
+    add_index :lucid_case_events, :uuid, unique: true
+    add_index :lucid_case_events, %i[delivered_at id]
+    add_index :lucid_case_events, %i[name kind]
+  end
+end
