@@ -6,7 +6,7 @@ module Lucid
         module_function
 
         def label(event)
-          "event #{event.name.inspect}#{event.step ? " step #{event.step.inspect}" : ''}"
+          "event #{event.name.inspect}#{event.step.present? ? " step #{event.step.to_sym.inspect}" : ''}"
         end
 
         def recorded(event)
@@ -19,6 +19,19 @@ module Lucid
 
         def not_recorded(name)
           "event #{name.inspect} not recorded: payload not serializable; data already persisted"
+        end
+
+        # @return [Boolean] whether the Subscriber (class or block handler) logs
+        def enabled_for(handler)
+          handler.is_a?(Class) && handler.respond_to?(:logging?) ? handler.logging? : Lucid::Case.configuration.logging == :enabled
+        end
+
+        # Writes +message+ through the configured logger when +enabled+.
+        def emit(enabled, message, level: :error)
+          return unless enabled
+
+          logger = Lucid::Case.configuration.logger
+          logger&.public_send(level) { "#{Lucid::Case::Logging::PREFIX} #{message}" }
         end
       end
     end

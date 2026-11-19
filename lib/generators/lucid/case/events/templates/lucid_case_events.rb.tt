@@ -1,0 +1,30 @@
+Lucid::Case.configure do |config|
+  # Commands record an Event on every call. Override per case with `events :enabled | :disabled`.
+  config.events.recording = :enabled
+
+  # :outbox writes the Event in the Command's transaction and delivers it after the commit (at-least-once).
+  # :inline has no table and delivers in-process after the commit (at-most-once); handy in tests.
+  config.events.store = Rails.env.test? ? :inline : :outbox
+
+  # :active_job runs each Subscriber in its own job. Or an object that responds to `publish(event)`.
+  # config.events.transport = :active_job
+  # config.events.queue = :default
+  # config.events.delivery_attempts = 5
+
+  # Retention of delivered rows, purged by `Lucid::Case::Events.relay_pending` (schedule it, e.g. every minute).
+  # config.events.retention = 7.days
+  # config.events.purge = :enabled
+  # config.events.claim_timeout = 5.minutes
+
+  # Skip Deliveries already made (needs a lucid_case_deliveries table and the :outbox store).
+  # config.events.deduplication = :disabled
+
+  # Directories loaded at boot so every Subscriber registers (relative to Rails.root).
+  # config.events.load_paths = %w[app/models]
+
+  # Captured when the Event is recorded and restored around each Delivery (tenant, actor).
+  # config.events.context = -> { { tenant: Current.tenant } }
+  # config.events.around_delivery = ->(context, &block) { Current.set(tenant: context[:tenant], &block) }
+
+  # config.events.table_name = "lucid_case_events"
+end
