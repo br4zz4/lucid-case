@@ -57,11 +57,13 @@ module Lucid
         raise Error::RelayFailed, "transport failed for events: #{failed.join(', ')}" if failed.any?
       end
 
+      # @api private
       # @return [ActiveRecord::Relation] outbox rows that may match one of +subscriptions+ (by kind, name and step)
       def self.rows_for(subscriptions)
         subscriptions.map { |item| Record.where(kind: item.kind.to_s, name: item.target_name, step: item.step&.to_s) }.reduce(:or)
       end
 
+      # @api private
       def self.ordered_pending_ids
         by_subscriber = Registry.subscriptions.select(&:ordered).group_by(&:subscriber_id)
         by_subscriber.filter_map do |subscriber_id, subscriptions|
@@ -70,6 +72,8 @@ module Lucid
         end.reduce(:or)
       end
 
+      # Deletes delivered rows older than +config.events.retention+ (and old deduplication marks), keeping the rows
+      # an ordered subscriber still has to process. Called by +relay_pending+ when +config.events.purge+ is enabled.
       def self.purge
         config = Lucid::Case.configuration
         scope = Record.where.not(delivered_at: nil).where("delivered_at < ?", Time.current - Lucid::Case.configuration.events.retention)

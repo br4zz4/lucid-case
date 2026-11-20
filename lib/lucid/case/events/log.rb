@@ -2,6 +2,8 @@ module Lucid
   class Case
     module Events
       # Wording of the event log lines (written through the case logging switch).
+      #
+      # @api private
       module Log
         module_function
 

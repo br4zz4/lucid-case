@@ -152,7 +152,7 @@ end
 ## Installation
 
 ```ruby
-gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.1.0'
+gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.2.0'
 ```
 
 Ruby 3.2 or newer, Rails 7.2 or newer. Then:

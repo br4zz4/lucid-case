@@ -1,6 +1,8 @@
 module Lucid
   class Case
     module Events
+      # @api private
+      #
       # Writes Events to the outbox table in the current transaction and relays them after the commit.
       module OutboxStore
         module_function

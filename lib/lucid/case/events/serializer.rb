@@ -1,6 +1,8 @@
 module Lucid
   class Case
     module Events
+      # @api private
+      #
       # Turns input, content and context into values that survive storage and job arguments
       # (ActiveJob::Arguments: records become GlobalIDs and come back reloaded).
       module Serializer

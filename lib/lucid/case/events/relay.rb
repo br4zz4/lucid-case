@@ -2,6 +2,8 @@ module Lucid
   class Case
     module Events
       # Hands Events from the outbox to the transport.
+      #
+      # @api private
       module Relay
         module_function
 

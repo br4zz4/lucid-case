@@ -2,6 +2,8 @@ module Lucid
   class Case
     module Events
       # Runs the Subscribers that match an Event.
+      #
+      # @api private
       module Dispatcher
         module_function
 

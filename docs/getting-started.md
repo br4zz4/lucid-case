@@ -3,7 +3,7 @@
 Add the gem, run the generator, and write a case.
 
 ```ruby
-gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.1.0'
+gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.2.0'
 ```
 
 ```sh

@@ -11,6 +11,13 @@ bin/rails db:migrate
 
 The generator creates the migrations for `lucid_case_events`, `lucid_case_deliveries` (deduplication) and `lucid_case_cursors` (ordered delivery), and `config/initializers/lucid_case_events.rb` with `recording = :enabled`, the `:outbox` store (and `:inline` in the test environment) and every other option commented with its default. Without the migration, keep `config.events.recording = :disabled` (the default).
 
+## Choosing
+
+- **Store:** use `:outbox` (default) when an event must not be lost: it survives a crash between the commit and the delivery. Use `:inline` for tests and for apps that do not want the migration: there is no table and it is at-most-once.
+- **Case event or `emit`:** subscribe to the Case event when the fact is "this command finished" (`Enrollment::Approve`). Use `emit` for a fact the result does not tell, like a limit reached halfway through.
+- **Subscriber or block:** a `Lucid::Case::Subscriber` when the reaction has logic, needs a transaction or may call commands. A named block (`Lucid::Case.subscribe(..., as:)`) for a one-liner such as enqueueing a job.
+- **`stale_on` or subscriber:** to drop a query's cache use `stale_on`, which runs right after the commit in the same process; a subscriber would run later, in a job.
+
 ## Case events
 
 Every command that records produces a **Case event** when it finishes, named after the class: `Enrollment::Approve` becomes `enrollment.approve`. Nothing to write in the command.
@@ -150,7 +157,26 @@ If the process dies between the commit and the relay, the row stays pending. Sch
 Lucid::Case::Events.relay_pending
 ```
 
-Run it every minute with cron or your job backend's recurring tasks (solid_queue's `recurring.yml`, sidekiq-cron). It claims rows so two sweeps never take the same one, and raises `RelayFailed` with the ids after the whole batch when a transport failed, so the failure shows in your job backend.
+Run it every minute with cron or your job backend's recurring tasks. With solid_queue, first wrap it in a job:
+
+```ruby
+class RelayPendingEventsJob < ApplicationJob
+  def perform
+    Lucid::Case::Events.relay_pending
+  end
+end
+```
+
+and schedule it in `config/recurring.yml`:
+
+```yaml
+production:
+  relay_pending_events:
+    class: RelayPendingEventsJob
+    schedule: every minute
+```
+
+With sidekiq-cron, schedule the same job with `"* * * * *"`. If nothing schedules the sweep, events whose relay was interrupted stay pending until someone runs it. It claims rows so two sweeps never take the same one, and raises `RelayFailed` with the ids after the whole batch when a transport failed, so the failure shows in your job backend.
 
 `config.events.retention` (default `7.days`) says how long delivered rows are kept, and the sweep deletes older ones when `config.events.purge` is `:enabled`. Rows that were not delivered are never deleted. The outbox is not an audit trail: keep your own record if you need one.
 

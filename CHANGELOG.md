@@ -13,6 +13,8 @@ Events.
 - Event logging, `Lucid::Case::TestHelpers` and RSpec matchers (`lucid/case/rspec`), and `rails g lucid:case:events`.
 - `activejob` is now a dependency.
 
+Upgrading from 0.1.0: bump the tag and `bundle install`. Nothing changes until you turn events on: `config.events.recording` is `:disabled` by default. To use them, run `bin/rails g lucid:case:events`, migrate, and schedule `Lucid::Case::Events.relay_pending`.
+
 ## 0.1.0
 
 Initial release.

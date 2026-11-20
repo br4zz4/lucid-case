@@ -2,7 +2,7 @@ module Lucid
   class Case
     module Events
       module Transports
-        # Default transport: one DeliveryJob per Subscriber that wants the Event.
+        # Default transport (+config.events.transport = :active_job+): one DeliveryJob per Subscriber that wants the Event.
         module ActiveJob
           module_function
 

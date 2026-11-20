@@ -2,6 +2,8 @@ module Lucid
   class Case
     module Events
       # Test support: captures Events at recording time, without persisting or delivering them.
+      #
+      # @api private (use Lucid::Case::TestHelpers or the RSpec matchers)
       module Recorder
         KEY = :lucid_case_event_captures
 

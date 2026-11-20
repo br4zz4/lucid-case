@@ -11,6 +11,8 @@ module Lucid
 
       end
 
+      # @api private
+      #
       # Skips Deliveries already made when +config.events.deduplication+ is enabled.
       #
       # A transactional Subscriber marks inside its own transaction, so a failure undoes the mark. A block or a
