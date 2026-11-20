@@ -4,6 +4,16 @@ A use case library for Rails: a Case is a Command (writes) or a Query (reads), a
 
 ## Language
 
+### Failures
+
+**Fail-fast guard**:
+A predicate declared with `fail_if` that, when true, ends the case with a typed failure and its Failure message before the body runs; guards run in declaration order and the first that holds wins.
+_Avoid_: validation, precondition, rule
+
+**Failure message**:
+The human-readable text of a failure type, resolved by convention from the case name and the type through I18n.
+_Avoid_: error string, failure reason
+
 ### Events
 
 **Event**:
