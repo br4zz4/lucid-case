@@ -9,9 +9,7 @@ require "lucid/case/events/outbox_store"
 require "lucid/case/events/relay"
 require "lucid/case/events/transports/active_job"
 require "lucid/case/events/deduplication"
-require "lucid/case/events/delivery_job"
 require "lucid/case/events/cursor"
-require "lucid/case/events/ordered_delivery_job"
 
 module Lucid
   class Case
@@ -31,6 +29,9 @@ module Lucid
     #     end
     #   end
     module Events
+      autoload :DeliveryJob, "lucid/case/events/delivery_job"
+      autoload :OrderedDeliveryJob, "lucid/case/events/ordered_delivery_job"
+
       # @return [#publish] the configured transport
       def self.transport
         configured = Lucid::Case.configuration.events.transport
