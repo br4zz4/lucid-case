@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+Fail-fast guards.
+
+- `fail_if :predicate?` (or `fail_if(:type) { ... }`) ends a case with `failure(type, errors: [message])` before the body runs, with `as:`, `message:` and `with:`.
+- `fail_with(:type, **content)` builds the same failure inside the body.
+- The message is read from I18n by convention: `<case>.<type>`, then `lucid_case.failures.<type>`, then `type.to_s.humanize`.
+- Guards run after `validates`, in declaration order, and the first one that holds wins. Logging shows which guard held.
+
+Upgrading from 0.2.0: bump the tag and `bundle install`. Nothing changes until a case declares `fail_if`.
+
 ## 0.2.0
 
 Events.

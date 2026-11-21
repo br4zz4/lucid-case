@@ -39,6 +39,29 @@ With `logging :enabled` each call leaves this in the log:
 
 Without `values: true` only the names are logged (`input=[:params]`), and values are always filtered through your app's `filter_parameters`. Inside a case you can also write your own lines with `logger.info(...)`. See [Logging](docs/logging.md).
 
+## Guards
+
+A guard is a business condition that ends the case with a typed failure before the body runs. The failure type is the method name, and the message comes from I18n by convention.
+
+```ruby
+class ClassEnrollment::Create < Lucid::Case::Command
+  attributes :student_id, :school_class_id
+
+  fail_if :class_full?
+  fail_if :already_enrolled?, with: :student
+  fail_if(:no_seats) { school_class.seats.zero? }
+
+  def call!
+    success(enrollment: ClassEnrollment.create!(student: student, school_class: school_class))
+  end
+end
+
+ClassEnrollment::Create.call(student_id: 1, school_class_id: 2)
+  .on_failure(:class_full) { |result| flash[:alert] = result[:errors].first }
+```
+
+Guards run in order after `validates` and before `call!`; the first one that holds ends the case with `failure(type, errors: [message])`. The message is read from `class_enrollment.create.class_full`, then `lucid_case.failures.class_full`, then `"Class full"`. `fail_with(:type, **content)` builds the same failure inside the body. See [Guards](docs/guards.md).
+
 ## Steps
 
 When a case is a sequence of things that can stop half way, write it as steps. Each step says whether to go on, jump, or finish.
@@ -152,7 +175,7 @@ end
 ## Installation
 
 ```ruby
-gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.2.0'
+gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.3.0'
 ```
 
 Ruby 3.2 or newer, Rails 7.2 or newer. Then:
@@ -177,6 +200,7 @@ Use a query when the case only reads or computes. It never gets a transaction or
 - [Getting started](docs/getting-started.md)
 - [Commands](docs/commands.md)
 - [Queries](docs/queries.md)
+- [Guards](docs/guards.md)
 - [Steps](docs/steps.md)
 - [Catch and finally](docs/catch.md)
 - [Cache](docs/cache.md)

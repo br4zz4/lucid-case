@@ -42,16 +42,18 @@ module Lucid
         # @param as [Symbol, nil] failure type for a method guard (defaults to the name without +?+)
         # @param message [String, Symbol, nil] literal message, or an I18n key when a Symbol
         # @param with [Symbol, Array<Symbol>, nil] methods of the case whose values are added to the failure content
-        # @raise [ArgumentError] on a missing name, a block guard named with +?+, +as:+ with a block, or an invalid +with:+
+        # @raise [ArgumentError] on a missing or blank name, an invalid +as:+, a block guard named with +?+, +as:+ with a block,
+        #   a +message:+ that is not a String or Symbol, or an invalid +with:+
         def fail_if(name = nil, as: nil, message: nil, with: nil, &block)
-          raise ArgumentError, "fail_if needs a name" if name.nil?
+          raise ArgumentError, "fail_if needs a name" if name.nil? || !(name.is_a?(Symbol) || name.is_a?(String)) || name.empty?
+          raise ArgumentError, "fail_if as: must be a Symbol or a String" unless as.nil? || ((as.is_a?(Symbol) || as.is_a?(String)) && !as.empty?)
           raise ArgumentError, "fail_if with a block takes the failure type, without a trailing ?: #{name.inspect}" if block && name.to_s.end_with?("?")
           raise ArgumentError, "fail_if with a block does not accept as:" if block && as
           raise ArgumentError, "fail_if message: must be a String or a Symbol" unless message.nil? || message.is_a?(String) || message.is_a?(Symbol)
 
           name = name.to_sym
           type = block ? name : (as || name.to_s.delete_suffix("?")).to_sym
-          guard = Guard.new(name, type, block, message, lucid_guard_with(with))
+          guard = Guard.new(name, type, block, message, lucid_guard_with(with)).freeze
           self.guard_definitions = (guard_definitions + [guard]).freeze
         end
 

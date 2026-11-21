@@ -587,6 +587,21 @@ class GuardsTest < Minitest::Test
     assert_raises(ArgumentError) { command { fail_if { true } } }
   end
 
+  def test_fail_if_with_invalid_name_raises
+    # act / assert
+    assert_raises(ArgumentError) { command { fail_if 123 } }
+    assert_raises(ArgumentError) { command { fail_if "" } }
+    assert_raises(ArgumentError) { command { fail_if(123) { true } } }
+    assert_raises(ArgumentError) { command { fail_if(:"") { true } } }
+  end
+
+  def test_fail_if_with_invalid_as_raises
+    # act / assert
+    assert_raises(ArgumentError) { command { fail_if :a?, as: 1 } }
+    assert_raises(ArgumentError) { command { fail_if :a?, as: "" } }
+    assert_raises(ArgumentError) { command { fail_if :a?, as: :"" } }
+  end
+
   def test_block_with_question_mark_type_raises
     # act / assert
     assert_raises(ArgumentError) { command { fail_if(:class_full?) { true } } }
