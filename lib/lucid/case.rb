@@ -27,6 +27,7 @@ require "lucid/case/instrumentation"
 require "lucid/case/logging"
 require "lucid/case/finally"
 require "lucid/case/stepped"
+require "lucid/case/guards"
 require "lucid/case/catching"
 require "lucid/case/cache"
 
@@ -56,6 +57,7 @@ module Lucid
     include Instrumentation
     include Logging
     include Stepped
+    include Guards
     include Catching
     include Finally
     include Cache
@@ -164,7 +166,7 @@ module Lucid
     end
 
     def lucid_evaluate
-      result = valid? ? lucid_run_body : lucid_invalid_attributes_result
+      result = valid? ? (lucid_run_guards || lucid_run_body) : lucid_invalid_attributes_result
       lucid_ensure_result!(result)
       lucid_run_hooks(result)
       if result.success?

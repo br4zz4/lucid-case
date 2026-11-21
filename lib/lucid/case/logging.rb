@@ -116,6 +116,10 @@ module Lucid
         lucid_log("step #{name.inspect} -> #{description}")
       end
 
+      def lucid_log_guard(name, result)
+        lucid_log("guard #{name.inspect} -> #{lucid_describe_result(result)}")
+      end
+
       def lucid_log_step_raised(name, error)
         lucid_log("step #{name.inspect} raised #{lucid_describe_error(error)}", level: :warn)
       end
