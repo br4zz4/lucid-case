@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+The delivery jobs load on first use.
+
+- `Lucid::Case::Events::DeliveryJob` and `OrderedDeliveryJob` are autoloaded. Before, requiring the gem loaded `ActiveJob::Base` during `Bundler.require`, so a custom queue adapter defined in an initializer was not yet available when `config.active_job.queue_adapter` was applied (`uninitialized constant ActiveJob::QueueAdapters::<Name>Adapter`).
+
+Upgrading from 0.3.0: bump the tag and `bundle install`.
+
 ## 0.3.0
 
 Fail-fast guards.
