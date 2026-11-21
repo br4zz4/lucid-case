@@ -6,6 +6,7 @@ class NameCollisionTest < Minitest::Test
   PRIVATE_NAMES = %i[
     run run_step run_steps run_body evaluate guarded isolated with_cache with_transaction
     cache_key log describe_data instrument_call write_cache ensure_result! refresh!
+    run_guards guard_holds? failure_message log_guard guard_with
   ].freeze
 
   def setup
@@ -63,6 +64,12 @@ class NameCollisionTest < Minitest::Test
       catch(ArgumentError) { |ctx| failure(:caught, error: ctx.error.message) }
 
       after_commit { events << [:after_commit, User.connection.transaction_open?] }
+
+      fail_if :never_holds?, with: :marker
+      fail_if(:block_never_holds) { false }
+
+      def never_holds? = false
+      def marker = :marker
 
       def call!
         raise ArgumentError, "boom" if fail_with == :raise
@@ -199,6 +206,26 @@ class NameCollisionTest < Minitest::Test
     # assert
     assert result.success?
     assert_includes @io.string, "Colliding::PrivateLog success"
+  end
+
+  def test_firing_guard_ignores_user_methods_with_guard_names
+    # arrange
+    klass = build_case("Colliding::Guarded", parent: Lucid::Case::Command) do
+      fail_if :holds?, with: :marker
+      def holds? = true
+      def marker = :marker
+      def call! = raise("body must not run")
+    end
+    define_colliding_methods(klass, PRIVATE_NAMES)
+
+    # act
+    result = klass.call
+
+    # assert
+    assert result.failure?
+    assert_equal :holds, result.type
+    assert_equal :marker, result[:marker]
+    assert_includes @io.string, "guard :holds?"
   end
 
   def test_call_query_hit_and_miss

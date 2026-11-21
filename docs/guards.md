@@ -53,7 +53,7 @@ With a block the name must not end in `?` and `as:` is not accepted.
 |---|---|
 | `as: :duplicate` | Failure type for a method guard, instead of the method name. |
 | `message: "Template em uso"` | A literal message, no I18n lookup. |
-| `message: :"other.key"` | An I18n key. A missing key is a bug in the app, so it has no default. |
+| `message: :"other.key"` | An I18n key, read with `I18n.t` and no default. A missing key is a bug in the app: it shows as I18n's "translation missing" text, or raises if the app configures I18n to raise. |
 | `with: :provisioning` | Adds the value of that method of the case to the failure content. |
 | `with: %i[resource event]` | Several methods. |
 
@@ -83,7 +83,7 @@ pt-BR:
       not_found: "Registro não encontrado"
 ```
 
-An anonymous class has no name, so the lookup starts at `lucid_case.failures.<type>`.
+An anonymous class has no name, so the lookup starts at `lucid_case.failures.<type>`. The scope is the class that is called: a guard inherited by a subclass looks for the message under the subclass name, then falls back to `lucid_case.failures.<type>`.
 
 ## fail_with
 
@@ -98,7 +98,7 @@ def call!
 end
 ```
 
-The content is `{ errors: [message], plan: plan }`. `fail_with(:x, message: "text")` uses a literal message. Passing `errors:` as content raises `ArgumentError`.
+The content is `{ errors: [message], plan: plan }`. `fail_with(:x, message: "text")` uses a literal message: `message:` is the option and never goes to the content, so use `failure(:x, message: ...)` when a result needs a `message` key. Passing `errors:` as content raises `ArgumentError`. An attribute named `fail_with` hides this helper.
 
 ## Guard, validation or failure in the body
 
@@ -112,9 +112,11 @@ The content is `{ errors: [message], plan: plan }`. `fail_with(:x, message: "tex
 
 | Error | When |
 |---|---|
-| `ArgumentError` at load | `fail_if` without a name, a block guard named with `?`, `as:` with a block, a `message:` that is not a String or Symbol, a `with:` that is not a Symbol or an array of Symbols or includes `:errors`. |
+| `ArgumentError` at load | `fail_if` without a name or with a blank or non-Symbol name, an `as:` that is not a Symbol or String, a block guard named with `?`, `as:` with a block, a `message:` that is not a String or Symbol, a `with:` that is not a Symbol or an array of Symbols or includes `:errors`. |
 | `ArgumentError` at call | `fail_with` with `errors:` in the content. |
 | `NoMethodError` at call | The predicate or a `with:` method does not exist. |
+
+These errors go through `catch` like any exception raised in the case. A `catch(StandardError)` turns a typo in a predicate name into a failure, so re-raise `NoMethodError` and `ArgumentError` there if you want them loud.
 
 ## Logging
 
