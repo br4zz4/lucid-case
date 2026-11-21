@@ -4,6 +4,7 @@ require "lucid/case/events/dispatcher"
 require "lucid/case/events/inline_store"
 require "lucid/case/events/log"
 require "lucid/case/events/recorder"
+require "lucid/case/events/observation"
 require "lucid/case/events/record"
 require "lucid/case/events/outbox_store"
 require "lucid/case/events/relay"
@@ -128,6 +129,7 @@ module Lucid
       def emit(name, **content)
         raise Error::EmitOutsideCommand, "#{self.class.name} is a #{self.class.kind}: only Commands can emit events" unless self.class.command?
         lucid_trigger_stale(kind: :custom, name: name.to_s, step: nil, type: nil, success: true, input: {}, content: content)
+        lucid_observe(kind: :custom, name: name.to_s, step: nil, type: nil, success: true, input: {}, content: content, result: nil)
         return unless self.class.events_recording?
 
         lucid_record_event(kind: :custom, name: name.to_s, type: nil, success: true, input: {}, content: content)
@@ -138,6 +140,8 @@ module Lucid
 
         lucid_trigger_stale(kind: :case, name: Events.event_name(self.class), step: nil, type: result.type, success: result.success?,
                             input: attribute_values, content: result.content)
+        lucid_observe(kind: :case, name: Events.event_name(self.class), step: nil, type: result.type, success: result.success?,
+                      input: attribute_values, content: result.content, result: result)
         return unless self.class.events_recording?
 
         block = self.class.event_payload_block
@@ -153,11 +157,22 @@ module Lucid
 
         event_name = Events.event_name(self.class)
         lucid_trigger_stale(kind: :step, name: event_name, step: name, type: :ok, success: true, input: attribute_values, content: outcome.content)
+        lucid_observe(kind: :step, name: event_name, step: name, type: :ok, success: true, input: attribute_values, content: outcome.content, result: outcome)
         return unless self.class.events_recording?
         return if !Recorder.capturing? && Registry.matching(kind: :step, name: event_name, step: name, type: :ok, success: true).empty?
 
         type = outcome.is_a?(Result) ? outcome.type : :ok
         lucid_record_event(kind: :step, name: event_name, step: name, type: type, success: true, input: {}, content: outcome.content)
+      end
+
+      def lucid_observe(kind:, name:, step:, type:, success:, input:, content:, result:)
+        return if self.class.events_setting == :disabled
+        return unless Observation.observed?
+
+        context = Lucid::Case.configuration.events.context&.call || {}
+        event = Event.new(id: SecureRandom.uuid, kind: kind, name: name, source: self.class.name, step: step, type: type, success: success,
+                          input: input, content: content, context: context, occurred_at: Time.current)
+        Observation.notify(event: event, command: self, result: result)
       end
 
       def lucid_trigger_stale(kind:, name:, step:, type:, success:, input:, content:)

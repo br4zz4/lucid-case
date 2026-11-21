@@ -55,6 +55,7 @@ Options under `config.events`, written with every default by `bin/rails g lucid:
 | `load_paths` | `%w[app/models]` | Directories loaded at boot and on reload so subscribers register. Must exist. |
 | `context` | `nil` | Callable whose Hash is captured with each event. |
 | `around_delivery` | `nil` | `->(context, &block)` that wraps each delivery. |
+| `observers` | `[]` | Callables `->(event:, command:, result:)` run synchronously where each event is born. See [Events](events.md#observers). |
 
 ## Boot validation
 

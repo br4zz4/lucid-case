@@ -171,6 +171,73 @@ class EventsConfigurationTest < Minitest::Test
     assert_equal :enabled, Lucid::Case.configuration.events.deduplication
   end
 
+  def test_observers_default_to_empty_array
+    # act
+    observers = Lucid::Case.configuration.events.observers
+
+    # assert
+    assert_equal [], observers
+  end
+
+  def test_observers_are_not_shared_between_configurations
+    # arrange
+    Lucid::Case.configuration.events.observers << -> {}
+
+    # act
+    Lucid::Case.reset_configuration!
+
+    # assert
+    assert_equal [], Lucid::Case.configuration.events.observers
+  end
+
+  def test_configure_accepts_callable_observers
+    # arrange
+    observer = ->(event:, command:, result:) {}
+
+    # act
+    Lucid::Case.configure { |config| config.events.observers << observer }
+
+    # assert
+    assert_equal [observer], Lucid::Case.configuration.events.observers
+  end
+
+  def test_validate_accepts_object_responding_to_call
+    # arrange
+    observer = Class.new { def call(event:, command:, result:); end }.new
+
+    # act
+    Lucid::Case.configure { |config| config.events.observers << observer }
+
+    # assert
+    assert_equal [observer], Lucid::Case.configuration.events.observers
+  end
+
+  def test_validate_rejects_observer_that_does_not_respond_to_call
+    # act
+    error = assert_raises(ArgumentError) do
+      Lucid::Case.configure { |config| config.events.observers << Object.new }
+    end
+
+    # assert
+    assert_includes error.message, "observers"
+  end
+
+  def test_validate_rejects_symbol_observer
+    # act / assert
+    assert_raises(ArgumentError) do
+      Lucid::Case.configure { |config| config.events.observers << :audit }
+    end
+  end
+
+  def test_validate_bang_raises_for_invalid_observer
+    # arrange
+    events = Lucid::Case.configuration.events
+    events.observers << "nope"
+
+    # act / assert
+    assert_raises(ArgumentError) { events.validate! }
+  end
+
   def test_reset_configuration_restores_events_defaults
     # arrange
     Lucid::Case.configure do |config|

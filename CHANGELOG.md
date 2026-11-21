@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+Synchronous event observers.
+
+- `config.events.observers`: callables `(event:, command:, result:)` run where each case, custom and step event is born, inside the transaction of a success and after the rollback of a failure or guard, independent of `recording` and the store. `events :disabled` silences them for a Command; an observer that raises rolls back a transactional Command.
+
+Upgrading from 0.3.1: bump the tag and `bundle install`. Nothing changes until an observer is registered.
+
 ## 0.3.1
 
 The delivery jobs load on first use.
