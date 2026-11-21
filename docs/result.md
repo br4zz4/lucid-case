@@ -40,3 +40,5 @@ end
 ```
 
 Invalid inputs give `failure(:invalid_attributes, errors: errors)`, where `errors` is an `ActiveModel::Errors`.
+
+A [guard](guards.md) that holds gives `failure(type, errors: [message])`, where `errors` is an array with one String, plus any content added with `with:`.

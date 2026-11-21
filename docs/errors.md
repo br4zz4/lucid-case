@@ -21,6 +21,6 @@ Errors raised by the gem inherit from `Lucid::Case::Error < StandardError`. Expe
 A few errors come from elsewhere:
 
 - `ActiveRecord::ReadOnlyError`: a query tried to write. Make it a command.
-- `ArgumentError`: invalid `transaction`, `cache`, `accumulate` or `logging` value, `catch` without classes or a block, a hook without a method or block, a `step` without a block, or `skip_to` a step that is not ahead.
+- `ArgumentError`: invalid `transaction`, `cache`, `accumulate` or `logging` value, `catch` without classes or a block, a hook without a method or block, a `step` without a block, `skip_to` a step that is not ahead, `fail_if` without a name, a block guard named with `?`, `fail_if` with `as:` and a block, an invalid `with:` or one that includes `:errors`, or `fail_with` with `errors:` in the content. See [Guards](guards.md).
 - `NotImplementedError`: a case with neither `call!` nor steps.
 - `NoMethodError`: `fresh` or `stale` on a command.

@@ -3,7 +3,7 @@
 Add the gem, run the generator, and write a case.
 
 ```ruby
-gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.2.0'
+gem 'lucid-case', github: 'br4zz4/lucid-case', tag: 'v0.3.0'
 ```
 
 ```sh
@@ -68,6 +68,10 @@ end
 ```
 
 More in [Testing](testing.md).
+
+## Guards
+
+A business condition that stops the case before the body is a guard: `fail_if :already_published?` fails with `:already_published` and a message from I18n. See [Guards](guards.md).
 
 ## Events
 
