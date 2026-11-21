@@ -228,6 +228,18 @@ end
 config.events.table_name = "public.lucid_case_events"
 ```
 
+## Observers
+
+An observer is called where an event is born, synchronously: inside the transaction of a success, after the rollback of a failure (a typed `failure`, a `fail_if` guard or `validates`), and never for an exception. It runs whether or not `config.events.recording` is on, whatever the store, and `events :disabled` on a Command turns it off for that Command.
+
+```ruby
+Lucid::Case.configure do |config|
+  config.events.observers << ->(event:, command:, result:) { AuditTrail.record(event, command, result) }
+end
+```
+
+Use an observer when the record must exist if and only if the data does (an audit trail written in the same transaction). Use a subscriber to react later (jobs, emails). An observer that raises rolls back a transactional Command and propagates; in a `transaction :disabled` Command the error propagates without undoing what was written. The event an observer receives is not serialized: `input` and `content` hold the original objects.
+
 ## Logging
 
 With logging on (see [Logging](logging.md)) each recorded event leaves a line. A case without a transaction that raises after recording events logs a `warn` listing the events that were kept and will be delivered. Failures that must not pass silently (a transport that failed, a delivery that gave up, an event already purged) log at `error`. Without logging the gem writes nothing, but `relay_pending` raises `RelayFailed` and a delivery job lets its last exception rise, so your job backend records it.

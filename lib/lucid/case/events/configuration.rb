@@ -42,8 +42,11 @@ module Lucid
         attr_accessor :context
         # @return [#call, nil] +->(context, &block)+ wraps each Delivery
         attr_accessor :around_delivery
+        # @return [Array<#call>] objects called with +(event:, command:, result:)+ where each Event is born
+        attr_reader :observers
 
         def initialize
+          @observers = []
           @recording = :disabled
           @store = :outbox
           @transport = :active_job
@@ -83,6 +86,7 @@ module Lucid
         def validate!
           raise ArgumentError, "deduplication requires store :outbox (the :inline store has no table)" if deduplication == :enabled && store == :inline
           raise ArgumentError, "transport must be :active_job or respond to publish(event), got #{transport.inspect}" unless transport == :active_job || transport.respond_to?(:publish)
+          raise ArgumentError, "observers must respond to call(event:, command:, result:)" unless observers.all? { |observer| observer.respond_to?(:call) }
           raise ArgumentError, "delivery_attempts must be a positive Integer, got #{delivery_attempts.inspect}" unless delivery_attempts.is_a?(Integer) && delivery_attempts.positive?
 
           self
