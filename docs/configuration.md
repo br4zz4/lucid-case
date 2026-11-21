@@ -30,7 +30,7 @@ end
 | `logger` | `Rails.logger` | Where the log lines go. |
 | `filter_parameters` | the app's | Filters applied to logged values. |
 
-`transaction`, `cache`, `accumulate`, `logging` and `log_level` raise `ArgumentError` on any other value.
+`transaction`, `cache`, `accumulate`, `logging` and `log_level` raise `ArgumentError` on any other value. `configure` also raises it for `config.events` values that make no sense: a `transport` that is not `:active_job` and does not respond to `publish`, a `delivery_attempts` that is not a positive Integer, or deduplication with the `:inline` store.
 
 `Lucid::Case.configuration` returns the current object, and `Lucid::Case.reset_configuration!` restores the defaults, which is useful in tests.
 

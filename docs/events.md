@@ -149,7 +149,7 @@ end
 
 ## Delivery
 
-With `config.events.store = :outbox` (the default) each event is a row in `lucid_case_events`, written in the command's transaction. After the commit a **relay** hands the row to the transport, which by default enqueues one `Lucid::Case::Events::DeliveryJob` per subscriber. A subscriber that fails is retried on its own (`config.events.delivery_attempts`, default 5) and the others are untouched. A subscriber that returns a `failure` counts as delivered.
+With `config.events.store = :outbox` (the default) each event is a row in `lucid_case_events`, written in the command's transaction. After the commit a **relay** hands the row to the transport, which by default enqueues one `Lucid::Case::Events::DeliveryJob` per subscriber. A subscriber that fails is retried on its own, with a growing wait between attempts (`config.events.delivery_attempts` executions, default 5) and the others are untouched. A subscriber that returns a `failure` counts as delivered.
 
 If the process dies between the commit and the relay, the row stays pending. Schedule a sweep that delivers what was left behind and purges old rows:
 
@@ -197,7 +197,7 @@ class Billing::OnEnrollmentApproved < Lucid::Case::Subscriber
 end
 ```
 
-Or let the gem skip repeated deliveries: `config.events.deduplication = :enabled` (needs the `:outbox` store, raises `ArgumentError` with `:inline`) records `(event id, subscriber)` in `lucid_case_deliveries`. In a transactional subscriber the mark is inside its transaction, so the effect in the database happens once. In a block or a subscriber without transaction the mark is written before the call and removed if it raises, so the retry runs again.
+Or let the gem skip repeated deliveries (the marks in `lucid_case_deliveries` are purged with the same retention): `config.events.deduplication = :enabled` (needs the `:outbox` store, raises `ArgumentError` with `:inline`) records `(event id, subscriber)` in `lucid_case_deliveries`. In a transactional subscriber the mark is inside its transaction, so the effect in the database happens once. In a block or a subscriber without transaction the mark is written before the call and removed if it raises, so the retry runs again.
 
 ### Order
 

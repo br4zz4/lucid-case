@@ -16,7 +16,7 @@ There is no commit that covers your database and SQS or RabbitMQ at once. Publis
 
 - `publish(event)` receives a `Lucid::Case::Event`. If it raises, the row stays pending and is retried by the sweep. It must not swallow errors.
 - It may be called more than once for the same event. Use `event.id` to deduplicate on the other side.
-- `event.to_h` is JSON friendly and `Lucid::Case::Event.from_h(hash)` rebuilds an equal event on the consumer, so a worker reading the queue gets the same object subscribers get.
+- `event.to_h` is JSON friendly (records in `input`, `content` and `context` become GlobalID strings, never a dump of their attributes) and `Lucid::Case::Event.from_h(hash)` rebuilds an equal event on the consumer, so a worker reading the queue gets the same object subscribers get.
 - The gem calls it in-process after the commit and in the sweep. Keep it fast, or enqueue and return.
 
 Records in `input` and `content` are serialized as GlobalIDs inside the event; the consumer needs the same app to reload them. For a different app, send ids in `event_payload` instead.
